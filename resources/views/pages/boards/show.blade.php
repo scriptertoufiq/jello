@@ -38,6 +38,30 @@
             </div>
 
             <div class="relative flex items-center gap-2">
+                <flux:button.group>
+                    <flux:button
+                        size="sm"
+                        icon="layout-grid"
+                        :variant="$view === 'board' ? 'primary' : 'filled'"
+                        :href="route('boards.show', ['board' => $board])"
+                        wire:navigate
+                        data-test="board-view-toggle-board"
+                    >
+                        {{ __('Board') }}
+                    </flux:button>
+
+                    <flux:button
+                        size="sm"
+                        icon="bars-3"
+                        :variant="$view === 'list' ? 'primary' : 'filled'"
+                        :href="route('boards.show', ['board' => $board, 'view' => 'list'])"
+                        wire:navigate
+                        data-test="board-view-toggle-list"
+                    >
+                        {{ __('List') }}
+                    </flux:button>
+                </flux:button.group>
+
                 <flux:button variant="ghost" size="sm" icon="arrow-left" :href="route('boards.index')" wire:navigate class="!text-white">
                     {{ __('All boards') }}
                 </flux:button>
@@ -119,7 +143,11 @@
         @endif
 
         <div class="mt-4 flex-1">
-            <livewire:pages::boards.canvas :board="$board" />
+            @if ($view === 'list')
+                <livewire:pages::boards.list-view :board="$board" />
+            @else
+                <livewire:pages::boards.canvas :board="$board" />
+            @endif
         </div>
 
         <livewire:pages::boards.card-modal :board="$board" />

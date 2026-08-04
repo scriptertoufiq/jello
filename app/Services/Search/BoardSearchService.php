@@ -3,6 +3,7 @@
 namespace App\Services\Search;
 
 use App\Models\Board;
+use App\Models\BoardList;
 use App\Models\Card;
 use App\Models\Team;
 use App\Models\User;
@@ -62,6 +63,39 @@ final class BoardSearchService
             ->whereNull('cards.completed_at')
             ->orderByRaw('CASE WHEN cards.due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('cards.due_date')
+            ->orderBy('cards.id')
+            ->get();
+    }
+
+    /**
+     * Get the cards on a single board for the list view.
+     *
+     * `manual` keeps the board's own ordering so the list mirrors the columns;
+     * the other sorts flatten across lists.
+     *
+     * @param  'manual'|'due'|'title'  $sort
+     * @return Collection<int, Card>
+     */
+    public function forBoard(Board $board, string $sort = 'manual', bool $hideCompleted = false): Collection
+    {
+        return Card::query()
+            ->active()
+            ->with(['list', 'assignees', 'labels'])
+            ->whereHas('list', fn (Builder $query) => $query
+                ->where('board_id', $board->id)
+                ->whereNull('board_lists.archived_at'))
+            ->when($hideCompleted, fn (Builder $query) => $query->whereNull('cards.completed_at'))
+            ->when($sort === 'due', fn (Builder $query) => $query
+                ->orderByRaw('CASE WHEN cards.due_date IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('cards.due_date'))
+            ->when($sort === 'title', fn (Builder $query) => $query->orderBy('cards.title'))
+            ->when($sort === 'manual', fn (Builder $query) => $query
+                ->orderBy(
+                    BoardList::query()
+                        ->select('position')
+                        ->whereColumn('board_lists.id', 'cards.board_list_id'),
+                )
+                ->orderBy('cards.position'))
             ->orderBy('cards.id')
             ->get();
     }

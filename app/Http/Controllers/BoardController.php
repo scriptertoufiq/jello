@@ -53,7 +53,7 @@ class BoardController extends Controller
     /**
      * Show a single board.
      */
-    public function show(Team $currentTeam, Board $board): View
+    public function show(Request $request, Team $currentTeam, Board $board): View
     {
         Gate::authorize('view', $board);
 
@@ -62,6 +62,7 @@ class BoardController extends Controller
         return view('pages.boards.show', [
             'team' => $currentTeam,
             'board' => $board,
+            'view' => $request->string('view')->value() === 'list' ? 'list' : 'board',
         ]);
     }
 

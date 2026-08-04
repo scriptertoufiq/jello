@@ -236,19 +236,33 @@ new class extends Component {
             <div
                 wire:key="list-{{ $list->id }}"
                 wire:sort:item="{{ $list->id }}"
-                class="flex w-72 shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900"
+                class="flex w-80 shrink-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
                 data-test="board-list"
             >
+                {{--
+                    The column header is deliberately unlike a card: a flat
+                    tinted bar with a small uppercase label, against the raised
+                    white tiles below it.
+                --}}
                 <div
                     @if ($this->canReorderLists) wire:sort:handle @endif
                     @class([
-                        'flex items-center justify-between gap-2 px-3 pt-3',
+                        'flex items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-200/70 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800/70',
                         'cursor-grab active:cursor-grabbing' => $this->canReorderLists,
                     ])
                 >
                     <div class="flex min-w-0 items-center gap-2">
-                        <span class="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ $list->name }}</span>
-                        <flux:badge size="sm" color="zinc">{{ $list->cards->count() }}</flux:badge>
+                        @if ($this->canReorderLists)
+                            <flux:icon.bars-2 variant="micro" class="shrink-0 text-zinc-400 dark:text-zinc-500" />
+                        @endif
+
+                        <h3 class="truncate text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
+                            {{ $list->name }}
+                        </h3>
+
+                        <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700">
+                            {{ $list->cards->count() }}
+                        </span>
                     </div>
 
                     @canany(['update', 'delete'], $list)
@@ -287,7 +301,7 @@ new class extends Component {
                         wire:sort:group="cards"
                         wire:sort="moveCard($item, {{ $list->id }}, $position)"
                     @endif
-                    class="flex min-h-4 flex-col gap-2 p-3"
+                    class="flex min-h-6 flex-col gap-2 p-2.5"
                     data-test="list-cards"
                 >
                     @foreach ($list->cards as $card)
@@ -295,7 +309,7 @@ new class extends Component {
                             wire:key="card-{{ $card->id }}"
                             wire:sort:item="{{ $card->id }}"
                             @class([
-                                'group rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800',
+                                'group rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800 dark:hover:border-zinc-600',
                                 'cursor-grab active:cursor-grabbing' => $this->canMoveCards,
                             ])
                             data-test="board-card"
@@ -324,7 +338,7 @@ new class extends Component {
                                             wire:sort:ignore
                                             wire:click="$dispatch('open-card', { cardId: {{ $card->id }} })"
                                             @class([
-                                                'block w-full text-left text-sm text-zinc-900 hover:underline dark:text-zinc-100',
+                                                'block w-full text-left text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100',
                                                 'line-through opacity-60' => $card->isComplete(),
                                             ])
                                             data-test="card-link"
@@ -362,7 +376,7 @@ new class extends Component {
                 </div>
 
                 @can('create', [App\Models\Card::class, $list])
-                    <div class="px-3 pb-3">
+                    <div class="px-2.5 pb-2.5">
                         <form wire:submit="addCard({{ $list->id }})">
                             <flux:input
                                 wire:model="newCardTitle.{{ $list->id }}"
@@ -378,7 +392,7 @@ new class extends Component {
         @endforeach
 
         @if ($this->canCreateList)
-            <div wire:sort:ignore class="w-72 shrink-0 rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
+            <div wire:sort:ignore class="w-80 shrink-0 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/50">
                 <form wire:submit="addList">
                     <flux:input
                         wire:model="newListName"
