@@ -41,7 +41,13 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim((string) env('APP_URL', 'http://localhost'), '/').'/storage',
+            /*
+             * Root-relative so uploaded images resolve against whatever host
+             * is serving the page. Deriving this from APP_URL breaks images
+             * whenever APP_URL drifts from the actual host or port. Set
+             * FILESYSTEM_PUBLIC_URL to an absolute URL to serve from a CDN.
+             */
+            'url' => rtrim((string) env('FILESYSTEM_PUBLIC_URL', ''), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

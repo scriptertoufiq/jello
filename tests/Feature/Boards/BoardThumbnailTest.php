@@ -267,6 +267,26 @@ test('duplicating a board copies its thumbnail to a separate file', function () 
     $disk->assertExists($board->thumbnail_path);
 });
 
+test('the thumbnail url is host relative so it survives an APP_URL mismatch', function () {
+    [$user, $team] = thumbnailWorkspace();
+
+    $board = Board::factory()->forTeam($team)->createdBy($user)->create();
+
+    $this->actingAs($user)
+        ->patch(route('boards.update', ['current_team' => $team->slug, 'board' => $board]), [
+            'name' => $board->name,
+            'thumbnail' => UploadedFile::fake()->image('cover.png', 400, 200),
+        ])
+        ->assertRedirect();
+
+    $url = $board->fresh()->thumbnailUrl();
+
+    // An absolute URL built from APP_URL points at the wrong host whenever the
+    // app is served from a different port or domain, and the image 404s.
+    expect($url)->toStartWith('/storage/')
+        ->and($url)->not->toStartWith('http');
+});
+
 test('the board index shows the thumbnail instead of the gradient', function () {
     [$user, $team] = thumbnailWorkspace();
 

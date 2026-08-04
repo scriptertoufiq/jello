@@ -2,8 +2,10 @@
     <section class="flex h-full w-full flex-col">
         <div
             @class([
-                'relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl px-5 py-4',
+                'relative flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-xl px-5 py-4',
                 'bg-gradient-to-r '.$board->backgroundGradient() => ! $board->hasThumbnail(),
+                // Give the cover image room to read as a background rather than a sliver.
+                'min-h-40' => $board->hasThumbnail(),
             ])
         >
             @if ($board->hasThumbnail())
@@ -13,8 +15,8 @@
                     class="absolute inset-0 size-full object-cover"
                     data-test="board-thumbnail"
                 >
-                {{-- Keeps the white header text legible over any image. --}}
-                <div class="absolute inset-0 bg-black/50"></div>
+                {{-- Darkest at the bottom, where the title and buttons sit. --}}
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/20"></div>
             @endif
 
             <div class="relative min-w-0">
