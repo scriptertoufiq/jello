@@ -121,6 +121,8 @@
         <div class="mt-4 flex-1">
             <livewire:pages::boards.canvas :board="$board" />
         </div>
+
+        <livewire:pages::boards.card-modal :board="$board" />
     </section>
 
     @can('archive', $board)

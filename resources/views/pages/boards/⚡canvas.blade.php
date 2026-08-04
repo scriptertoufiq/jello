@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component {
@@ -157,6 +158,15 @@ new class extends Component {
         unset($this->lists);
 
         Flux::toast(variant: 'success', text: __('Card archived.'));
+    }
+
+    /**
+     * Re-read the board after the card modal changes something.
+     */
+    #[On('card-saved')]
+    public function refreshLists(): void
+    {
+        unset($this->lists);
     }
 
     /**
@@ -307,18 +317,21 @@ new class extends Component {
                                 </button>
 
                                 <div class="min-w-0 flex-1">
-                                    <a
-                                        href="{{ route('cards.show', ['card' => $card]) }}"
-                                        wire:navigate
-                                        wire:sort:ignore
-                                        @class([
-                                            'block text-sm text-zinc-900 hover:underline dark:text-zinc-100',
-                                            'line-through opacity-60' => $card->isComplete(),
-                                        ])
-                                        data-test="card-link"
-                                    >
-                                        {{ $card->title }}
-                                    </a>
+                                    {{-- Flux opens the modal on the click; Livewire fills it in. --}}
+                                    <flux:modal.trigger name="card-detail">
+                                        <button
+                                            type="button"
+                                            wire:sort:ignore
+                                            wire:click="$dispatch('open-card', { cardId: {{ $card->id }} })"
+                                            @class([
+                                                'block w-full text-left text-sm text-zinc-900 hover:underline dark:text-zinc-100',
+                                                'line-through opacity-60' => $card->isComplete(),
+                                            ])
+                                            data-test="card-link"
+                                        >
+                                            {{ $card->title }}
+                                        </button>
+                                    </flux:modal.trigger>
 
                                     @if ($card->due_date)
                                         <flux:badge
