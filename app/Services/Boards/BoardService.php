@@ -2,14 +2,16 @@
 
 namespace App\Services\Boards;
 
-use App\Enums\BoardVisibility;
+use App\Data\BoardAttributes;
 use App\Enums\TeamRole;
 use App\Models\Board;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Support\PositionCalculator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Owns every write to the boards table.
@@ -19,7 +21,11 @@ use Illuminate\Support\Facades\DB;
  */
 final class BoardService
 {
-    public function __construct(private readonly PositionCalculator $positions) {}
+    public function __construct(
+        private readonly PositionCalculator $positions,
+        private readonly BoardListService $lists,
+        private readonly LabelService $labels,
+    ) {}
 
     /**
      * Get the boards in a workspace that the given user may see.
@@ -39,27 +45,44 @@ final class BoardService
 
     /**
      * Create a board in the given workspace.
-     *
-     * @param  array{name: string, description?: string|null, background?: string, visibility?: string}  $attributes
      */
-    public function create(Team $team, User $creator, array $attributes): Board
+    public function create(Team $team, User $creator, BoardAttributes $attributes): Board
     {
         return DB::transaction(function () use ($team, $creator, $attributes): Board {
-            $visibility = BoardVisibility::from($attributes['visibility'] ?? BoardVisibility::Workspace->value);
-
             $board = $team->boards()->create([
-                'name' => $attributes['name'],
-                'description' => $attributes['description'] ?? null,
-                'background' => $attributes['background'] ?? 'slate',
-                'visibility' => $visibility,
+                ...$attributes->toArray(),
                 'created_by' => $creator->id,
                 'position' => $this->nextPosition($team),
             ]);
 
             // The creator must stay able to reach a private board they just made.
-            if ($visibility === BoardVisibility::Private) {
+            if ($board->isPrivate()) {
                 $board->boardMemberships()->create([
                     'user_id' => $creator->id,
+                    'role' => TeamRole::Admin,
+                ]);
+            }
+
+            // Start with usable columns and labels rather than an empty board.
+            $this->lists->createMany($board, config('boards.default_lists', []));
+            $this->labels->createDefaults($board);
+
+            return $board;
+        });
+    }
+
+    /**
+     * Update the board's attributes.
+     */
+    public function update(Board $board, BoardAttributes $attributes): Board
+    {
+        return DB::transaction(function () use ($board, $attributes): Board {
+            $board->fill($attributes->toArray())->save();
+
+            // Becoming private would otherwise lock out the creator.
+            if ($board->isPrivate() && $board->boardMemberships()->doesntExist()) {
+                $board->boardMemberships()->create([
+                    'user_id' => $board->created_by,
                     'role' => TeamRole::Admin,
                 ]);
             }
@@ -69,26 +92,118 @@ final class BoardService
     }
 
     /**
-     * Update the board's attributes.
+     * Copy a board, including its lists, labels, and open cards.
      *
-     * @param  array{name?: string, description?: string|null, background?: string, visibility?: string}  $attributes
+     * Comments, attachments, and activity are intentionally not copied: they
+     * belong to the original board's history.
      */
-    public function update(Board $board, array $attributes): Board
+    public function duplicate(Board $board, User $creator): Board
     {
-        return DB::transaction(function () use ($board, $attributes): Board {
-            if (array_key_exists('visibility', $attributes)) {
-                $attributes['visibility'] = BoardVisibility::from($attributes['visibility']);
-            }
+        return DB::transaction(function () use ($board, $creator): Board {
+            $copy = $board->team->boards()->create([
+                'name' => $board->name.' '.__('(copy)'),
+                'description' => $board->description,
+                'background' => $board->background,
+                'visibility' => $board->visibility,
+                'created_by' => $creator->id,
+                'position' => $this->nextPosition($board->team),
+            ]);
 
-            $board->fill($attributes)->save();
+            $this->copyThumbnail($board, $copy);
 
-            // Becoming private would otherwise lock out the creator.
-            if ($board->isPrivate() && $board->boardMemberships()->doesntExist()) {
-                $board->boardMemberships()->create([
-                    'user_id' => $board->created_by,
+            if ($copy->isPrivate()) {
+                $copy->boardMemberships()->create([
+                    'user_id' => $creator->id,
                     'role' => TeamRole::Admin,
                 ]);
             }
+
+            // Map old label ids to new ones so cards keep their labels.
+            $labelMap = [];
+
+            foreach ($board->labels as $label) {
+                $labelMap[$label->id] = $copy->labels()->create([
+                    'name' => $label->name,
+                    'color' => $label->color,
+                ])->id;
+            }
+
+            foreach ($board->lists()->whereNull('archived_at')->get() as $list) {
+                $listCopy = $copy->lists()->create([
+                    'name' => $list->name,
+                    'position' => $list->position,
+                ]);
+
+                foreach ($list->cards()->whereNull('archived_at')->get() as $card) {
+                    $cardCopy = $listCopy->cards()->create([
+                        'title' => $card->title,
+                        'description' => $card->description,
+                        'position' => $card->position,
+                        'start_date' => $card->start_date,
+                        'due_date' => $card->due_date,
+                        'cover_color' => $card->cover_color,
+                        'created_by' => $creator->id,
+                    ]);
+
+                    $newLabelIds = $card->labels
+                        ->map(fn ($label) => $labelMap[$label->id] ?? null)
+                        ->filter()
+                        ->all();
+
+                    if ($newLabelIds !== []) {
+                        $cardCopy->labels()->sync($newLabelIds);
+                    }
+                }
+            }
+
+            return $copy;
+        });
+    }
+
+    /**
+     * Store a cover image for the board, replacing any existing one.
+     */
+    public function setThumbnail(Board $board, UploadedFile $file): Board
+    {
+        $disk = config('boards.thumbnails.disk');
+
+        $path = $file->store("boards/{$board->id}/thumbnails", $disk);
+
+        return DB::transaction(function () use ($board, $disk, $path): Board {
+            $previous = $board->hasThumbnail()
+                ? ['disk' => $board->thumbnail_disk, 'path' => $board->thumbnail_path]
+                : null;
+
+            $board->forceFill([
+                'thumbnail_disk' => $disk,
+                'thumbnail_path' => $path,
+            ])->save();
+
+            // Only bin the old file once the new one is safely recorded.
+            if ($previous !== null) {
+                Storage::disk($previous['disk'])->delete($previous['path']);
+            }
+
+            return $board;
+        });
+    }
+
+    /**
+     * Remove the board's cover image, falling back to its gradient.
+     */
+    public function removeThumbnail(Board $board): Board
+    {
+        if (! $board->hasThumbnail()) {
+            return $board;
+        }
+
+        return DB::transaction(function () use ($board): Board {
+            Storage::disk($board->thumbnail_disk)->delete($board->thumbnail_path);
+
+            $board->forceFill([
+                'thumbnail_disk' => null,
+                'thumbnail_path' => null,
+            ])->save();
 
             return $board;
         });
@@ -138,6 +253,34 @@ final class BoardService
 
             return $board;
         });
+    }
+
+    /**
+     * Copy a board's cover image onto its duplicate.
+     *
+     * The copy gets its own file so deleting either board's thumbnail cannot
+     * blank out the other.
+     */
+    private function copyThumbnail(Board $source, Board $copy): void
+    {
+        if (! $source->hasThumbnail()) {
+            return;
+        }
+
+        $disk = Storage::disk($source->thumbnail_disk);
+
+        if (! $disk->exists($source->thumbnail_path)) {
+            return;
+        }
+
+        $path = "boards/{$copy->id}/thumbnails/".basename($source->thumbnail_path);
+
+        $disk->copy($source->thumbnail_path, $path);
+
+        $copy->forceFill([
+            'thumbnail_disk' => $source->thumbnail_disk,
+            'thumbnail_path' => $path,
+        ])->save();
     }
 
     /**

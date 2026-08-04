@@ -21,6 +21,14 @@
                     <flux:sidebar.item icon="layout-grid" :href="route('boards.index')" :current="request()->routeIs('boards.*')" wire:navigate>
                         {{ __('Boards') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="check-circle" :href="route('my-tasks')" :current="request()->routeIs('my-tasks')" wire:navigate>
+                        {{ __('My tasks') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="magnifying-glass" :href="route('search')" :current="request()->routeIs('search')" wire:navigate>
+                        {{ __('Search') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

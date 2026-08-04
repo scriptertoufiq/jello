@@ -22,7 +22,7 @@ class BoardFactory extends Factory
     {
         return [
             'team_id' => Team::factory(),
-            'name' => fake()->unique()->catchPhrase(),
+            'name' => 'Board '.ucfirst(fake()->unique()->word()),
             'slug' => null,
             'description' => fake()->optional()->sentence(),
             'background' => fake()->randomElement(['slate', 'blue', 'green', 'amber', 'rose', 'violet']),

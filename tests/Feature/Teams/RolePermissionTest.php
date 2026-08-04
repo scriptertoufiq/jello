@@ -5,6 +5,7 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Teams\RolePermissionRegistry;
+use Database\Seeders\PermissionSeeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -30,7 +31,7 @@ test('every role is seeded with its default permissions', function () {
 });
 
 test('the seeder is idempotent', function () {
-    $this->seed(Database\Seeders\PermissionSeeder::class);
+    $this->seed(PermissionSeeder::class);
 
     expect(Permission::count())->toEqual(count(TeamPermission::cases()))
         ->and(Role::count())->toEqual(count(TeamRole::cases()));

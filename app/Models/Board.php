@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -24,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string|null $description
  * @property string $background
+ * @property string|null $thumbnail_disk
+ * @property string|null $thumbnail_path
  * @property BoardVisibility $visibility
  * @property int $created_by
  * @property float $position
@@ -33,10 +36,25 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property-read Team $team
  * @property-read User $creator
+ * @property-read Collection<int, BoardList> $lists
+ * @property-read Collection<int, Label> $labels
+ * @property-read Collection<int, Activity> $activities
  * @property-read Collection<int, BoardMember> $boardMemberships
  * @property-read Collection<int, User> $members
  */
-#[Fillable(['team_id', 'name', 'slug', 'description', 'background', 'visibility', 'created_by', 'position', 'archived_at'])]
+#[Fillable([
+    'team_id',
+    'name',
+    'slug',
+    'description',
+    'background',
+    'thumbnail_disk',
+    'thumbnail_path',
+    'visibility',
+    'created_by',
+    'position',
+    'archived_at',
+])]
 class Board extends Model
 {
     /** @use HasFactory<BoardFactory> */
@@ -94,6 +112,36 @@ class Board extends Model
     }
 
     /**
+     * Get the board's lists (columns), in board order.
+     *
+     * @return HasMany<BoardList, $this>
+     */
+    public function lists(): HasMany
+    {
+        return $this->hasMany(BoardList::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * Get the labels available on this board.
+     *
+     * @return HasMany<Label, $this>
+     */
+    public function labels(): HasMany
+    {
+        return $this->hasMany(Label::class)->orderBy('name');
+    }
+
+    /**
+     * Get the board's activity feed, newest first.
+     *
+     * @return HasMany<Activity, $this>
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(Activity::class)->latest();
+    }
+
+    /**
      * Get the explicit board memberships.
      *
      * Only meaningful for private boards; workspace boards are visible to
@@ -117,6 +165,39 @@ class Board extends Model
             ->using(BoardMember::class)
             ->withPivot(['role'])
             ->withTimestamps();
+    }
+
+    /**
+     * Determine if the board has a cover image.
+     */
+    public function hasThumbnail(): bool
+    {
+        return $this->thumbnail_path !== null && $this->thumbnail_disk !== null;
+    }
+
+    /**
+     * Get the public URL of the board's cover image.
+     *
+     * Returns null when no thumbnail is set, so callers can fall back to the
+     * background gradient.
+     */
+    public function thumbnailUrl(): ?string
+    {
+        if (! $this->hasThumbnail()) {
+            return null;
+        }
+
+        return Storage::disk($this->thumbnail_disk)->url($this->thumbnail_path);
+    }
+
+    /**
+     * Get the Tailwind gradient classes for the board's background.
+     */
+    public function backgroundGradient(): string
+    {
+        $gradients = config('boards.backgrounds');
+
+        return $gradients[$this->background] ?? reset($gradients);
     }
 
     /**

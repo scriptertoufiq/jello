@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Data\BoardAttributes;
 use App\Http\Requests\StoreBoardRequest;
 use App\Http\Requests\UpdateBoardRequest;
 use App\Models\Board;
@@ -39,7 +40,11 @@ class BoardController extends Controller
     {
         Gate::authorize('create', [Board::class, $currentTeam]);
 
-        $board = $this->boards->create($currentTeam, $request->user(), $request->validated());
+        $board = $this->boards->create($currentTeam, $request->user(), BoardAttributes::fromRequest($request));
+
+        if ($thumbnail = $request->thumbnail()) {
+            $this->boards->setThumbnail($board, $thumbnail);
+        }
 
         return to_route('boards.show', ['board' => $board])
             ->with('status', __('Board created.'));
@@ -51,6 +56,8 @@ class BoardController extends Controller
     public function show(Team $currentTeam, Board $board): View
     {
         Gate::authorize('view', $board);
+
+        $board->load(['members', 'team.members']);
 
         return view('pages.boards.show', [
             'team' => $currentTeam,
@@ -65,10 +72,32 @@ class BoardController extends Controller
     {
         Gate::authorize('update', $board);
 
-        $board = $this->boards->update($board, $request->validated());
+        $board = $this->boards->update($board, BoardAttributes::fromRequest($request, $board));
+
+        if ($thumbnail = $request->thumbnail()) {
+            $this->boards->setThumbnail($board, $thumbnail);
+        } elseif ($request->wantsThumbnailRemoved()) {
+            $this->boards->removeThumbnail($board);
+        }
 
         return to_route('boards.show', ['board' => $board])
             ->with('status', __('Board updated.'));
+    }
+
+    /**
+     * Duplicate the board's structure into a new board.
+     */
+    public function duplicate(Request $request, Team $currentTeam, Board $board): RedirectResponse
+    {
+        Gate::authorize('view', $board);
+        Gate::authorize('create', [Board::class, $currentTeam]);
+
+        $board->load(['labels', 'lists.cards.labels']);
+
+        $copy = $this->boards->duplicate($board, $request->user());
+
+        return to_route('boards.show', ['board' => $copy])
+            ->with('status', __('Board duplicated.'));
     }
 
     /**

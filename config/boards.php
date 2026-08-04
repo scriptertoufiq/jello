@@ -39,4 +39,73 @@ return [
         'Done',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Label Colors
+    |--------------------------------------------------------------------------
+    |
+    | The colour keys a label may use, mapped to the Tailwind classes used to
+    | render the swatch. Keys are validated when labels are created.
+    |
+    */
+
+    'label_colors' => [
+        'green' => 'bg-emerald-500',
+        'yellow' => 'bg-amber-400',
+        'orange' => 'bg-orange-500',
+        'red' => 'bg-rose-500',
+        'purple' => 'bg-violet-500',
+        'blue' => 'bg-sky-500',
+        'sky' => 'bg-cyan-400',
+        'lime' => 'bg-lime-400',
+        'pink' => 'bg-pink-500',
+        'gray' => 'bg-zinc-500',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Labels
+    |--------------------------------------------------------------------------
+    |
+    | Labels created alongside a new board.
+    |
+    */
+
+    'default_labels' => [
+        ['name' => 'Bug', 'color' => 'red'],
+        ['name' => 'Feature', 'color' => 'green'],
+        ['name' => 'Chore', 'color' => 'blue'],
+        ['name' => 'Urgent', 'color' => 'orange'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Attachments
+    |--------------------------------------------------------------------------
+    */
+
+    'attachments' => [
+        'disk' => env('BOARD_ATTACHMENT_DISK', 'public'),
+        'max_kilobytes' => 10240,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Board Thumbnails
+    |--------------------------------------------------------------------------
+    |
+    | The optional cover image shown on the board card and board header. When
+    | no thumbnail is set the board falls back to its background gradient.
+    | The disk must be publicly readable; the default `public` disk needs
+    | `php artisan storage:link` to have been run.
+    |
+    */
+
+    'thumbnails' => [
+        'disk' => env('BOARD_THUMBNAIL_DISK', 'public'),
+        'max_kilobytes' => 4096,
+        'mimes' => ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+        'max_dimension' => 4000,
+    ],
+
 ];

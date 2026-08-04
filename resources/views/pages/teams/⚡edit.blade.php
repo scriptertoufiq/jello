@@ -4,6 +4,7 @@ use App\Data\TeamPermissions;
 use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Rules\TeamName;
+use App\Services\Teams\TeamMemberService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -62,7 +63,7 @@ new class extends Component
         $this->redirectRoute('teams.edit', ['team' => $this->teamModel->fresh()->slug], navigate: true);
     }
 
-    public function updateMember(int $userId, string $role): void
+    public function updateMember(int $userId, string $role, TeamMemberService $members): void
     {
         Gate::authorize('updateMember', $this->teamModel);
 
@@ -70,10 +71,9 @@ new class extends Component
             'role' => ['required', 'string', Rule::enum(TeamRole::class)],
         ])->validate();
 
-        $this->teamModel->memberships()
-            ->where('user_id', $userId)
-            ->firstOrFail()
-            ->update(['role' => TeamRole::from($validated['role'])]);
+        $member = $this->teamModel->members()->findOrFail($userId);
+
+        $members->changeRole($this->teamModel, $member, TeamRole::from($validated['role']));
 
         $this->populateTeamData();
 
@@ -286,6 +286,43 @@ new class extends Component
                             @endif
                         @endforeach
                     </div>
+                </div>
+            @endif
+
+            @if ($this->permissions->canDeleteTeam && ! $teamData['is_personal'] && count($members) > 1)
+                <div class="space-y-6">
+                    <div>
+                        <flux:heading>{{ __('Transfer ownership') }}</flux:heading>
+                        <flux:subheading>
+                            {{ __('Hand this workspace to another member. You will become an admin.') }}
+                        </flux:subheading>
+                    </div>
+
+                    <form
+                        method="POST"
+                        action="{{ route('teams.ownership.update', ['team' => $teamData['slug']]) }}"
+                        class="flex items-end gap-2"
+                        onsubmit="return confirm('{{ __('Transfer ownership of this workspace? You will become an admin.') }}')"
+                    >
+                        @csrf
+                        @method('PATCH')
+
+                        <flux:select name="user_id" :label="__('New owner')" class="max-w-xs" data-test="transfer-ownership-select">
+                            @foreach ($members as $member)
+                                @if ($member['role'] !== 'owner')
+                                    <flux:select.option value="{{ $member['id'] }}">
+                                        {{ $member['name'] }} ({{ $member['email'] }})
+                                    </flux:select.option>
+                                @endif
+                            @endforeach
+                        </flux:select>
+
+                        <flux:button type="submit" variant="danger" data-test="transfer-ownership-button">
+                            {{ __('Transfer') }}
+                        </flux:button>
+                    </form>
+
+                    <flux:error name="user_id" />
                 </div>
             @endif
 

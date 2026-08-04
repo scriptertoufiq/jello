@@ -28,6 +28,10 @@ class PermissionSeeder extends Seeder
             Permission::findOrCreate($permission->value, config('auth.defaults.guard'));
         }
 
+        // syncPermissions() resolves names through the package's cache, which
+        // still holds the pre-insert list at this point.
+        $registrar->forgetCachedPermissions();
+
         foreach (TeamRole::cases() as $role) {
             Role::findOrCreate($role->value, config('auth.defaults.guard'))
                 ->syncPermissions(array_map(

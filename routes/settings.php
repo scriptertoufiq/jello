@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TeamOwnershipController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -28,5 +29,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(EnsureTeamMembership::class)->group(function () {
         Route::livewire('settings/teams/{team}', 'pages::teams.edit')->name('teams.edit');
+
+        Route::patch('settings/teams/{team}/ownership', [TeamOwnershipController::class, 'update'])
+            ->name('teams.ownership.update');
     });
 });

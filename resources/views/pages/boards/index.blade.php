@@ -20,15 +20,11 @@
                 </flux:button>
 
                 @can('create', [App\Models\Board::class, $team])
-                    <flux:button
-                        variant="primary"
-                        icon="plus"
-                        x-data=""
-                        x-on:click.prevent="$dispatch('open-modal', 'create-board')"
-                        data-test="boards-new-board-button"
-                    >
-                        {{ __('New board') }}
-                    </flux:button>
+                    <flux:modal.trigger name="create-board">
+                        <flux:button variant="primary" icon="plus" data-test="boards-new-board-button">
+                            {{ __('New board') }}
+                        </flux:button>
+                    </flux:modal.trigger>
                 @endcan
             </div>
         </div>
@@ -47,7 +43,17 @@
                     class="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
                     data-test="board-card"
                 >
-                    <div class="h-20 bg-gradient-to-br {{ config('boards.backgrounds.'.$board->background, 'from-slate-500 to-slate-700') }}"></div>
+                    @if ($board->hasThumbnail())
+                        <img
+                            src="{{ $board->thumbnailUrl() }}"
+                            alt=""
+                            loading="lazy"
+                            class="h-28 w-full object-cover"
+                            data-test="board-thumbnail"
+                        >
+                    @else
+                        <div class="h-28 bg-gradient-to-br {{ $board->backgroundGradient() }}"></div>
+                    @endif
 
                     <div class="flex flex-1 flex-col gap-2 p-4">
                         <div class="flex items-start justify-between gap-2">
@@ -83,7 +89,7 @@
 
     @can('create', [App\Models\Board::class, $team])
         <flux:modal name="create-board" :show="$errors->isNotEmpty()" focusable class="max-w-lg">
-            <form method="POST" action="{{ route('boards.store') }}" class="space-y-6">
+            <form method="POST" action="{{ route('boards.store') }}" enctype="multipart/form-data" class="space-y-6">
                 @csrf
 
                 <div>
@@ -124,6 +130,13 @@
                     </div>
 
                     <flux:error name="background" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>{{ __('Thumbnail') }}</flux:label>
+                    <flux:description>{{ __('Optional cover image. Replaces the background swatch.') }}</flux:description>
+                    <flux:input type="file" name="thumbnail" accept="image/*" data-test="create-board-thumbnail" />
+                    <flux:error name="thumbnail" />
                 </flux:field>
 
                 <flux:select name="visibility" :label="__('Visibility')" data-test="create-board-visibility">
