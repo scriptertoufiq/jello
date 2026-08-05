@@ -84,8 +84,17 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    /*
+    | Attachments are stored on a private disk and streamed through the
+    | authorized download/preview routes. Putting them on the `public` disk
+    | would make every file readable by anyone holding the URL, including on
+    | private boards. The disk is recorded per attachment, so files uploaded
+    | under an older setting keep resolving against the disk they were
+    | written to.
+    */
+
     'attachments' => [
-        'disk' => env('BOARD_ATTACHMENT_DISK', 'public'),
+        'disk' => env('BOARD_ATTACHMENT_DISK', 'local'),
         'max_kilobytes' => 10240,
     ],
 

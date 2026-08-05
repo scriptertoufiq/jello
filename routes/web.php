@@ -76,6 +76,7 @@ Route::prefix('{current_team}')
 
         Route::post('cards/{card}/attachments', [AttachmentController::class, 'store'])->name('attachments.store');
         Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
+        Route::get('attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
         Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
         Route::post('boards/{board}/labels', [LabelController::class, 'store'])->name('labels.store');

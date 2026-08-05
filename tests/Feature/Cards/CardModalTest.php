@@ -205,6 +205,33 @@ test('the modal bridges livewire window events to the document event flux listen
         ->and($html)->toContain("modal-close', { name: 'card-detail' }");
 });
 
+test('the modal header clears the flux close button', function () {
+    [$user, $team, $board, $card] = modalFixture();
+
+    $this->actingAs($user);
+
+    $html = Livewire::test('pages::boards.card-modal', ['board' => $board])
+        ->call('openCard', $card->id)
+        ->html();
+
+    // Flux positions its close button absolutely at top-0 end-0 mt-4 me-4, so
+    // the header row must reserve space or the controls sit on top of it.
+    expect($html)->toContain('justify-between gap-4 pe-12')
+        ->and($html)->toContain('card-modal-open-page');
+});
+
+test('the open as page control is labelled for screen readers', function () {
+    [$user, $team, $board, $card] = modalFixture();
+
+    $this->actingAs($user);
+
+    $html = Livewire::test('pages::boards.card-modal', ['board' => $board])
+        ->call('openCard', $card->id)
+        ->html();
+
+    expect($html)->toContain('Open as a full page');
+});
+
 test('the modal responds to the open-card event, not just a direct call', function () {
     [$user, $team, $board, $card] = modalFixture();
 

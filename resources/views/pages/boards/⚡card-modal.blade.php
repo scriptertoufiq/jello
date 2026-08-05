@@ -400,7 +400,12 @@ new class extends Component {
         @php($labelColors = config('boards.label_colors'))
 
         <div class="space-y-6">
-            <div class="flex items-start justify-between gap-4">
+            {{--
+                Flux renders its own close button absolutely at `top-0 end-0
+                mt-4 me-4`, so the header keeps a right inset to stop these
+                controls colliding with it.
+            --}}
+            <div class="flex items-start justify-between gap-4 pe-12">
                 <div class="min-w-0">
                     <flux:heading size="lg" class="break-words" data-test="card-modal-title">{{ $card->title }}</flux:heading>
                     <flux:subheading>{{ __('in :list', ['list' => $card->list->name]) }}</flux:subheading>
@@ -419,14 +424,17 @@ new class extends Component {
                         </flux:button>
                     @endcan
 
-                    <flux:button
-                        size="sm"
-                        variant="ghost"
-                        icon="arrow-top-right-on-square"
-                        :href="route('cards.show', ['card' => $card])"
-                        wire:navigate
-                        data-test="card-modal-open-page"
-                    />
+                    <flux:tooltip :content="__('Open as a full page')" position="bottom">
+                        <flux:button
+                            size="sm"
+                            variant="ghost"
+                            icon="arrow-top-right-on-square"
+                            :href="route('cards.show', ['card' => $card])"
+                            wire:navigate
+                            :aria-label="__('Open as a full page')"
+                            data-test="card-modal-open-page"
+                        />
+                    </flux:tooltip>
                 </div>
             </div>
 
@@ -669,29 +677,8 @@ new class extends Component {
                     <div>
                         <flux:heading size="sm">{{ __('Attachments') }}</flux:heading>
 
-                        <div class="mt-2 space-y-1">
-                            @forelse ($card->attachments as $attachment)
-                                <div class="flex items-center justify-between gap-2" wire:key="attachment-{{ $attachment->id }}" data-test="card-modal-attachment">
-                                    <a
-                                        href="{{ route('attachments.download', ['attachment' => $attachment]) }}"
-                                        class="min-w-0 flex-1 truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
-                                    >
-                                        {{ $attachment->name }}
-                                    </a>
-
-                                    @can('delete', $attachment)
-                                        <flux:button
-                                            variant="ghost"
-                                            size="xs"
-                                            icon="trash"
-                                            wire:click="deleteAttachment({{ $attachment->id }})"
-                                            data-test="card-modal-attachment-delete"
-                                        />
-                                    @endcan
-                                </div>
-                            @empty
-                                <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('No attachments.') }}</flux:text>
-                            @endforelse
+                        <div class="mt-2" data-test="card-modal-attachment">
+                            <x-attachment-list :attachments="$card->attachments" delete-mode="livewire" />
                         </div>
 
                         @can('create', [App\Models\Attachment::class, $card])

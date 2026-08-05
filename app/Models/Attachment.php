@@ -52,11 +52,30 @@ class Attachment extends Model
     }
 
     /**
-     * Get a temporary or public URL for the stored file.
+     * Get the authorized URL that streams this file inline for previewing.
+     *
+     * Always prefer this over a direct disk URL: it runs the attachment policy
+     * before serving a byte.
      */
-    public function url(): string
+    public function previewUrl(): string
     {
-        return Storage::disk($this->disk)->url($this->path);
+        return route('attachments.preview', ['attachment' => $this]);
+    }
+
+    /**
+     * Get the authorized URL that downloads this file.
+     */
+    public function downloadUrl(): string
+    {
+        return route('attachments.download', ['attachment' => $this]);
+    }
+
+    /**
+     * Determine whether the stored file is still present.
+     */
+    public function exists(): bool
+    {
+        return Storage::disk($this->disk)->exists($this->path);
     }
 
     /**

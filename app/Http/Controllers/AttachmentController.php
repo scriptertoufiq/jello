@@ -35,7 +35,40 @@ class AttachmentController extends Controller
     {
         Gate::authorize('view', $attachment);
 
+        $this->ensureFileExists($attachment);
+
         return Storage::disk($attachment->disk)->download($attachment->path, $attachment->name);
+    }
+
+    /**
+     * Stream an attachment inline so it can be previewed in the page.
+     *
+     * Previews must not point at the storage disk directly: that would serve
+     * files straight off the filesystem with no permission check.
+     */
+    public function preview(Team $currentTeam, Attachment $attachment): StreamedResponse
+    {
+        Gate::authorize('view', $attachment);
+
+        $this->ensureFileExists($attachment);
+
+        return Storage::disk($attachment->disk)->response(
+            $attachment->path,
+            $attachment->name,
+            [
+                'Content-Type' => $attachment->mime_type ?? 'application/octet-stream',
+                'Content-Disposition' => 'inline; filename="'.addslashes($attachment->name).'"',
+                'Cache-Control' => 'private, max-age=3600',
+            ],
+        );
+    }
+
+    /**
+     * Fail cleanly when the row outlives the file behind it.
+     */
+    private function ensureFileExists(Attachment $attachment): void
+    {
+        abort_unless(Storage::disk($attachment->disk)->exists($attachment->path), 404);
     }
 
     /**

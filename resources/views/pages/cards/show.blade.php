@@ -281,29 +281,8 @@
                 <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
                     <flux:heading size="sm">{{ __('Attachments') }}</flux:heading>
 
-                    <div class="mt-3 space-y-2">
-                        @forelse ($card->attachments as $attachment)
-                            <div class="flex items-center justify-between gap-2" data-test="card-attachment">
-                                <a
-                                    href="{{ route('attachments.download', ['attachment' => $attachment]) }}"
-                                    class="min-w-0 flex-1 truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
-                                >
-                                    {{ $attachment->name }}
-                                </a>
-
-                                <flux:text class="shrink-0 text-xs text-zinc-500">{{ $attachment->humanSize() }}</flux:text>
-
-                                @can('delete', $attachment)
-                                    <form method="POST" action="{{ route('attachments.destroy', ['attachment' => $attachment]) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="xs" icon="trash" data-test="attachment-delete-button" />
-                                    </form>
-                                @endcan
-                            </div>
-                        @empty
-                            <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('No attachments.') }}</flux:text>
-                        @endforelse
+                    <div class="mt-3" data-test="card-attachment">
+                        <x-attachment-list :attachments="$card->attachments" delete-mode="form" />
                     </div>
 
                     @can('create', [App\Models\Attachment::class, $card])
