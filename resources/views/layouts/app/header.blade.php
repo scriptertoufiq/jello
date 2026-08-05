@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
@@ -40,6 +40,8 @@
                     />
                 </flux:tooltip>
             </flux:navbar>
+
+            <x-appearance-toggle class="me-1.5" />
 
             <x-desktop-user-menu :showTeam="false" />
 
